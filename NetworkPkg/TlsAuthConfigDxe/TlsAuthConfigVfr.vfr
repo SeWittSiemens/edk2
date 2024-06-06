@@ -15,6 +15,7 @@ formset
   help   = STRING_TOKEN(STR_TLS_AUTH_CONFIG_HELP),
 
   varstore TLS_AUTH_CONFIG_IFR_NVDATA,
+    varid = VARSTORE_ID_TLS_AUTH_CONFIG,
     name = TLS_AUTH_CONFIG_IFR_NVDATA,
     guid = TLS_AUTH_CONFIG_GUID;
 
@@ -47,6 +48,17 @@ formset
          flags  = INTERACTIVE,
          key    = KEY_TLS_AUTH_CONFIG_CLIENT_CERT;
     endif;
+
+    subtitle text = STRING_TOKEN(STR_NULL);
+
+    //
+    // Display TLS cipher configuration
+    //
+    goto TLS_AUTH_CONFIG_FORMID6_FORM,
+         prompt = STRING_TOKEN(STR_TLS_AUTH_CONFIG_TLS_CIPHERS),
+         help   = STRING_TOKEN(STR_TLS_AUTH_CONFIG_TLS_CIPHERS_HELP),
+         flags  = INTERACTIVE,
+         key    = KEY_TLS_AUTH_CONFIG_TLS_CIPHERS;
   endform;
 
   //
@@ -143,5 +155,17 @@ formset
 
   endform;
 
+  //
+  // ##6 Form6: TLS cipher configuration
+  //
+  form formid = TLS_AUTH_CONFIG_FORMID6_FORM,
+    title  = STRING_TOKEN(STR_TLS_AUTH_CONFIG_TLS_CIPHERS);
+
+    label LABEL_TLS_CIPHERS;
+    label LABEL_END;
+
+    subtitle text = STRING_TOKEN(STR_NULL);
+
+  endform;
 endformset;
 

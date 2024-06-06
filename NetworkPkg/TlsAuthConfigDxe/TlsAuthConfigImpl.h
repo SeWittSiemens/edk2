@@ -15,6 +15,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 #include <Protocol/HiiConfigAccess.h>
 #include <Protocol/SimpleFileSystem.h>
 #include <Protocol/HiiPopup.h>
+#include <Protocol/Tls.h>
 
 //
 // Libraries
@@ -35,6 +36,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 #include <Guid/MdeModuleHii.h>
 #include <Guid/ImageAuthentication.h>
 #include <Guid/TlsAuthentication.h>
+#include <Guid/HttpTlsCipherList.h>
 
 //
 // Include files with function prototypes
@@ -270,6 +272,20 @@ TlsAuthConfigAccessCallback (
   IN     UINT8                                 Type,
   IN OUT EFI_IFR_TYPE_VALUE                    *Value,
   OUT    EFI_BROWSER_ACTION_REQUEST            *ActionRequest
+  );
+
+/**
+  Initialize the variable HttpTlsCipherList with the default cipher list.
+
+  @param CipherList       The pointer to the buffer to store the cipher list, optional.
+  @param CipherListCount  The pointer to the buffer to store the cipher list count, optional.
+
+  @retval EFI_SUCCESS   Success.
+**/
+EFI_STATUS EFIAPI
+InitializeDefaultTLSCiphers (
+  OUT EFI_TLS_CIPHER  **CipherList      OPTIONAL,
+  OUT UINTN           *CipherListCount  OPTIONAL
   );
 
 #endif

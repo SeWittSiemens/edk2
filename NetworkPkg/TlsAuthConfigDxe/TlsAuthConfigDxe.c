@@ -69,6 +69,7 @@ TlsAuthConfigDxeDriverEntryPoint (
   )
 {
   EFI_STATUS  Status;
+  UINTN       Size;
 
   TLS_AUTH_CONFIG_PRIVATE_DATA  *PrivateData;
 
@@ -87,6 +88,27 @@ TlsAuthConfigDxeDriverEntryPoint (
                   );
   if (!EFI_ERROR (Status)) {
     return EFI_ALREADY_STARTED;
+  }
+
+  if (PcdGetBool (PcdInitializeTLSCipherVariable)) {
+    //
+    // Check if HttpTlsCipherList variable exists
+    //
+    Size   = 0;
+    Status = gRT->GetVariable (
+                    EDKII_HTTP_TLS_CIPHER_LIST_VARIABLE,
+                    &gEdkiiHttpTlsCipherListGuid,
+                    NULL,
+                    &Size,
+                    NULL
+                    );
+
+    if (Status != EFI_BUFFER_TOO_SMALL) {
+      //
+      // Create variable with default values
+      //
+      InitializeDefaultTLSCiphers (NULL, NULL);
+    }
   }
 
   //

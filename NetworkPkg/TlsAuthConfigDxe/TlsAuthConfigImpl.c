@@ -946,6 +946,719 @@ UpdateCAFromFile (
   return UpdatePage (FilePath, TLS_AUTH_CONFIG_FORMID4_FORM);
 }
 
+STATIC CONST struct {
+  EFI_TLS_CIPHER    Cipher;
+  CHAR16            *Name;
+} mCipherList[] = {
+  {
+    { 0x00, 0x2F }, L"TLS_RSA_WITH_AES_128_CBC_SHA"
+  },
+  {
+    { 0x00, 0x33 }, L"TLS_DHE_RSA_WITH_AES_128_CBC_SHA"
+  },
+  {
+    { 0x00, 0x35 }, L"TLS_RSA_WITH_AES_256_CBC_SHA"
+  },
+  {
+    { 0x00, 0x36 }, L"TLS_DH_DSS_WITH_AES_256_CBC_SHA"
+  },
+  {
+    { 0x00, 0x37 }, L"TLS_DH_RSA_WITH_AES_256_CBC_SHA"
+  },
+  {
+    { 0x00, 0x39 }, L"TLS_DHE_RSA_WITH_AES_256_CBC_SHA"
+  },
+  {
+    { 0x00, 0x3B }, L"TLS_RSA_WITH_NULL_SHA256"
+  },
+  {
+    { 0x00, 0x3C }, L"TLS_RSA_WITH_AES_128_CBC_SHA256"
+  },
+  {
+    { 0x00, 0x3D }, L"TLS_RSA_WITH_AES_256_CBC_SHA256"
+  },
+  {
+    { 0x00, 0x3E }, L"TLS_DH_DSS_WITH_AES_128_CBC_SHA256"
+  },
+  {
+    { 0x00, 0x3F }, L"TLS_DH_RSA_WITH_AES_128_CBC_SHA256"
+  },
+  {
+    { 0x00, 0x67 }, L"TLS_DHE_RSA_WITH_AES_128_CBC_SHA256"
+  },
+  {
+    { 0x00, 0x68 }, L"TLS_DH_DSS_WITH_AES_256_CBC_SHA256"
+  },
+  {
+    { 0x00, 0x69 }, L"TLS_DH_RSA_WITH_AES_256_CBC_SHA256"
+  },
+  {
+    { 0x00, 0x6B }, L"TLS_DHE_RSA_WITH_AES_256_CBC_SHA256"
+  },
+  {
+    { 0x00, 0x9C }, L"TLS_RSA_WITH_AES_128_GCM_SHA256"
+  },
+  {
+    { 0x00, 0x9F }, L"TLS_DHE_RSA_WITH_AES_256_GCM_SHA384"
+  },
+  {
+    { 0xC0, 0x09 }, L"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA"
+  },
+  {
+    { 0xC0, 0x0A }, L"TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA"
+  },
+  {
+    { 0xC0, 0x14 }, L"TLS_ECDHA_RSA_WITH_AES_128_CBC_SHA"
+  },
+  {
+    { 0xC0, 0x15 }, L"TLS_ECDHA_RSA_WITH_AES_256_CBC_SHA"
+  },
+  {
+    { 0xC0, 0x27 }, L"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256"
+  },
+  {
+    { 0xC0, 0x28 }, L"TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384"
+  },
+  {
+    { 0xC0, 0x2B }, L"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256"
+  },
+  {
+    { 0xC0, 0x2C }, L"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384"
+  },
+  {
+    { 0xC0, 0x2F }, L"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"
+  },
+  {
+    { 0xC0, 0x30 }, L"TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
+  },
+};
+
+/**
+  Get name for TLS cipher.
+
+  @param Cipher           The cipher to get name.
+
+  @retval Pointer to the name of the cipher.
+  @retval NULL if the cipher is not found.
+**/
+CHAR16 *EFIAPI
+GetCipherName (
+  IN EFI_TLS_CIPHER  *Cipher
+  )
+{
+  UINTN  Index;
+
+  if (Cipher == NULL) {
+    return NULL;
+  }
+
+  for (Index = 0; Index < ARRAY_SIZE (mCipherList); Index++) {
+    if (CompareMem (Cipher, &mCipherList[Index].Cipher, sizeof (EFI_TLS_CIPHER)) == 0) {
+      return mCipherList[Index].Name;
+    }
+  }
+
+  return NULL;
+}
+
+/**
+  Write/update the variable HttpTlsCipherList.
+
+  It will also check if the variable attributes match
+  and update if needed.
+
+  @retval EFI_SUCCESS   Success.
+**/
+EFI_STATUS EFIAPI
+WriteTLSCipherListVariable (
+  IN  EFI_TLS_CIPHER  *CipherList,
+  IN  UINTN           CipherListCount
+  )
+{
+  EFI_STATUS  Status;
+  UINTN       CipherListSize;
+  UINT32      Attributes;
+
+  if ((CipherList == NULL) || (CipherListCount == 0)) {
+    return EFI_INVALID_PARAMETER;
+  }
+
+  // Check if variable exists
+  CipherListSize = 0;
+  Status         = gRT->GetVariable (
+                          EDKII_HTTP_TLS_CIPHER_LIST_VARIABLE,
+                          &gEdkiiHttpTlsCipherListGuid,
+                          &Attributes,
+                          &CipherListSize,
+                          NULL
+                          );
+
+  if (Status == EFI_BUFFER_TOO_SMALL) {
+    // Exists, check if the variable attributes match
+    if (Attributes != PcdGet32 (PcdTLSCipherVariableAttributes)) {
+      // Delete the variable to change the attributes
+      Status = gRT->SetVariable (
+                      EDKII_HTTP_TLS_CIPHER_LIST_VARIABLE, // VariableName
+                      &gEdkiiHttpTlsCipherListGuid,        // VendorGuid
+                      0,                                   // Attributes
+                      0,                                   // DataSize
+                      NULL                                 // Data
+                      );
+      DEBUG ((
+        DEBUG_WARN,
+        "Deleting %s to change attributes, Status = %r\n",
+        EDKII_HTTP_TLS_CIPHER_LIST_VARIABLE,
+        Status
+        ));
+
+      if (EFI_ERROR (Status)) {
+        return Status;
+      }
+    }
+  }
+
+  Attributes     = PcdGet32 (PcdTLSCipherVariableAttributes);
+  CipherListSize = CipherListCount * sizeof (EFI_TLS_CIPHER);
+
+  Status = gRT->SetVariable (
+                  EDKII_HTTP_TLS_CIPHER_LIST_VARIABLE,
+                  &gEdkiiHttpTlsCipherListGuid,
+                  Attributes,
+                  CipherListSize,
+                  CipherList
+                  );
+
+  DEBUG ((
+    DEBUG_VERBOSE,
+    "Wrote %s with %u ciphers, Status = %r\n",
+    EDKII_HTTP_TLS_CIPHER_LIST_VARIABLE,
+    CipherListCount,
+    Status
+    ));
+
+  return Status;
+}
+
+/**
+  Initialize the variable HttpTlsCipherList with the default cipher list.
+
+  @param CipherList       The pointer to the buffer to store the cipher list, optional.
+  @param CipherListCount  The pointer to the buffer to store the cipher list count, optional.
+
+  @retval EFI_SUCCESS   Success.
+**/
+EFI_STATUS EFIAPI
+InitializeDefaultTLSCiphers (
+  OUT EFI_TLS_CIPHER  **CipherList      OPTIONAL,
+  OUT UINTN           *CipherListCount  OPTIONAL
+  )
+{
+  EFI_STATUS      Status;
+  EFI_TLS_CIPHER  *DefaultCipherList;
+  UINTN           DefaultCipherListCount;
+  UINTN           CipherListSize;
+
+  // Check default size
+  CipherListSize = PcdGetSize (PcdDefaultTLSCiphers);
+
+  if (CipherListSize == 0) {
+    return EFI_NOT_FOUND;
+  }
+
+  if ((CipherListSize % sizeof (EFI_TLS_CIPHER)) != 0) {
+    DEBUG ((DEBUG_ERROR, "Invalid default cipher list size\n"));
+    return EFI_NOT_FOUND;
+  }
+
+  // Get defaults and write variable
+  DefaultCipherList      = (EFI_TLS_CIPHER *)PcdGetPtr (PcdDefaultTLSCiphers);
+  DefaultCipherListCount = CipherListSize / sizeof (EFI_TLS_CIPHER);
+
+  Status = WriteTLSCipherListVariable (DefaultCipherList, DefaultCipherListCount);
+
+  DEBUG ((DEBUG_INFO, "Initialized %s with default cipher list, Status = %r\n", EDKII_HTTP_TLS_CIPHER_LIST_VARIABLE, Status));
+
+  if (EFI_ERROR (Status)) {
+    return Status;
+  }
+
+  if (CipherList && CipherListCount) {
+    *CipherList      = (EFI_TLS_CIPHER *)AllocateCopyPool (CipherListSize, DefaultCipherList);
+    *CipherListCount = DefaultCipherListCount;
+
+    if (*CipherList == NULL) {
+      return EFI_OUT_OF_RESOURCES;
+    }
+  }
+
+  return EFI_SUCCESS;
+}
+
+/**
+  Get available TLS ciphers from PCD.
+
+  @param CipherList       The pointer to the buffer to store the cipher list.
+  @param CipherListCount  The pointer to the buffer to store the cipher list count.
+
+  @retval EFI_SUCCESS   Success.
+  @retval EFI_NOT_FOUND The variable does not exist.
+**/
+EFI_STATUS EFIAPI
+GetAvailableTLSCiphers (
+  OUT EFI_TLS_CIPHER  **CipherList,
+  OUT UINTN           *CipherListCount
+  )
+{
+  UINTN  CipherListSize;
+
+  CipherListSize = PcdGetSize (PcdAvailableTLSCiphers);
+
+  if (CipherListSize == 0) {
+    DEBUG ((DEBUG_ERROR, "No available TLS ciphers\n"));
+    return EFI_NOT_FOUND;
+  }
+
+  if (CipherListSize % sizeof (EFI_TLS_CIPHER) != 0) {
+    DEBUG ((DEBUG_ERROR, "Invalid available cipher list size\n"));
+    return EFI_NOT_FOUND;
+  }
+
+  *CipherList      = (EFI_TLS_CIPHER *)PcdGetPtr (PcdAvailableTLSCiphers);
+  *CipherListCount = CipherListSize / sizeof (EFI_TLS_CIPHER);
+
+  return EFI_SUCCESS;
+}
+
+/**
+  Get default TLS ciphers from PCD.
+
+  @param CipherList       The pointer to the buffer to store the cipher list.
+  @param CipherListCount  The pointer to the buffer to store the cipher list count.
+
+  @retval EFI_SUCCESS   Success.
+  @retval EFI_NOT_FOUND The variable does not exist.
+**/
+EFI_STATUS EFIAPI
+GetDefaultTLSCiphers (
+  OUT EFI_TLS_CIPHER  **CipherList,
+  OUT UINTN           *CipherListCount
+  )
+{
+  UINTN  CipherListSize;
+
+  CipherListSize = PcdGetSize (PcdDefaultTLSCiphers);
+
+  if (CipherListSize == 0) {
+    DEBUG ((DEBUG_ERROR, "No available TLS ciphers\n"));
+    return EFI_NOT_FOUND;
+  }
+
+  if (CipherListSize % sizeof (EFI_TLS_CIPHER) != 0) {
+    DEBUG ((DEBUG_ERROR, "Invalid available cipher list size\n"));
+    return EFI_NOT_FOUND;
+  }
+
+  *CipherList      = (EFI_TLS_CIPHER *)PcdGetPtr (PcdDefaultTLSCiphers);
+  *CipherListCount = CipherListSize / sizeof (EFI_TLS_CIPHER);
+
+  return EFI_SUCCESS;
+}
+
+/**
+  Get current TLS ciphers from the variable HttpTlsCipherList.
+
+  @param CipherList       The pointer to the buffer to store the cipher list. The buffer is allocated by the callee.
+  @param CipherListCount  The pointer to the buffer to store the cipher list count.
+
+  @retval EFI_SUCCESS   Success.
+  @retval EFI_NOT_FOUND The variable does not exist.
+**/
+EFI_STATUS EFIAPI
+GetCurrentTLSCiphers (
+  OUT EFI_TLS_CIPHER  **CipherList,
+  OUT UINTN           *CipherListCount
+  )
+{
+  EFI_STATUS  Status;
+  UINTN       CipherListSize;
+  UINT32      Attr;
+
+  if ((CipherList == NULL) || (CipherListCount == NULL)) {
+    return EFI_INVALID_PARAMETER;
+  }
+
+  // Check if variable exists
+  CipherListSize = 0;
+  Status         = gRT->GetVariable (
+                          EDKII_HTTP_TLS_CIPHER_LIST_VARIABLE,
+                          &gEdkiiHttpTlsCipherListGuid,
+                          &Attr,
+                          &CipherListSize,
+                          NULL
+                          );
+
+  if (Status == EFI_NOT_FOUND) {
+    return InitializeDefaultTLSCiphers (CipherList, CipherListCount);
+  } else if (Status != EFI_BUFFER_TOO_SMALL) {
+    return Status;
+  }
+
+  if ((CipherListSize % sizeof (EFI_TLS_CIPHER)) != 0) {
+    DEBUG ((DEBUG_ERROR, "Invalid cipher list size\n"));
+    return InitializeDefaultTLSCiphers (CipherList, CipherListCount);
+  }
+
+  *CipherList = AllocateZeroPool (CipherListSize);
+
+  if (*CipherList == NULL) {
+    return EFI_OUT_OF_RESOURCES;
+  }
+
+  Status = gRT->GetVariable (
+                  EDKII_HTTP_TLS_CIPHER_LIST_VARIABLE,
+                  &gEdkiiHttpTlsCipherListGuid,
+                  &Attr,
+                  &CipherListSize,
+                  *CipherList
+                  );
+
+  if (EFI_ERROR (Status)) {
+    FreePool (*CipherList);
+    *CipherList = NULL;
+    return Status;
+  }
+
+  *CipherListCount = CipherListSize / sizeof (EFI_TLS_CIPHER);
+
+  return EFI_SUCCESS;
+}
+
+/**
+  Update current TLS ciphers to the variable HttpTlsCipherList.
+
+  @param Private          Private data with IfrNvData
+
+  @retval EFI_SUCCESS   Success.
+  @retval EFI_NOT_FOUND The variable does not exist.
+**/
+EFI_STATUS EFIAPI
+UpdateCurrentTLSCiphers (
+  IN TLS_AUTH_CONFIG_PRIVATE_DATA  *Private
+  )
+{
+  EFI_STATUS      Status;
+  EFI_TLS_CIPHER  *AvailableCipherList;
+  UINTN           AvailableCipherCount;
+  EFI_TLS_CIPHER  *CipherList;
+  UINTN           CipherListCount;
+  UINTN           Index;
+
+  Status = GetAvailableTLSCiphers (&AvailableCipherList, &AvailableCipherCount);
+
+  if (EFI_ERROR (Status)) {
+    return Status;
+  }
+
+  if (AvailableCipherCount > TLS_AUTH_CONFIG_CIPHERLIST_SIZE) {
+    AvailableCipherCount = TLS_AUTH_CONFIG_CIPHERLIST_SIZE;
+  }
+
+  CipherList = AllocateZeroPool (AvailableCipherCount * sizeof (EFI_TLS_CIPHER));
+
+  if (CipherList == NULL) {
+    return EFI_OUT_OF_RESOURCES;
+  }
+
+  // Go through available ciphers and add enabled ones to HttpTlsCipherList
+  CipherListCount = 0;
+  for (Index = 0; Index < AvailableCipherCount; Index++) {
+    if (Private->TlsAuthConfigNvData.CipherList[Index]) {
+      CopyMem (&CipherList[CipherListCount], &AvailableCipherList[Index], sizeof (EFI_TLS_CIPHER));
+      DEBUG ((DEBUG_VERBOSE, "Adding to HttpTlsCipherList: %s\n", GetCipherName (&CipherList[CipherListCount])));
+      CipherListCount++;
+    }
+  }
+
+  // Update the variable
+  Status = WriteTLSCipherListVariable (CipherList, CipherListCount);
+
+  FreePool (CipherList);
+
+  DEBUG ((DEBUG_INFO, "Updated %s with %d ciphers, Status = %r\n", EDKII_HTTP_TLS_CIPHER_LIST_VARIABLE, CipherListCount, Status));
+
+  return Status;
+}
+
+/**
+  Check if TLS cipher is present in a list.
+
+  @param CipherList       The pointer to the buffer to store the cipher list.
+  @param CipherListCount  The pointer to the buffer to store the cipher list count.
+
+  @retval EFI_SUCCESS   Success.
+  @retval EFI_NOT_FOUND The variable does not exist.
+**/
+BOOLEAN EFIAPI
+IsTLSCiphersPresent (
+  IN EFI_TLS_CIPHER  *CipherList,
+  IN UINTN           CipherListCount,
+  IN EFI_TLS_CIPHER  *Cipher
+  )
+{
+  UINTN  Index;
+
+  for (Index = 0; Index < CipherListCount; Index++) {
+    if (CompareMem (&CipherList[Index], Cipher, sizeof (EFI_TLS_CIPHER)) == 0) {
+      return TRUE;
+    }
+  }
+
+  return FALSE;
+}
+
+/**
+  Load default settings for ciphers.
+
+  @param[in]    IfrNvData           The IFR NV data.
+
+  @retval   EFI_SUCCESS             Success to update the signature list page
+  @retval   EFI_OUT_OF_RESOURCES    Unable to allocate required resources.
+
+**/
+EFI_STATUS
+LoadDefaultCiphers (
+  IN TLS_AUTH_CONFIG_PRIVATE_DATA    *Private,
+  IN OUT TLS_AUTH_CONFIG_IFR_NVDATA  *IfrNvData
+  )
+{
+  EFI_STATUS      Status;
+  EFI_TLS_CIPHER  *AvailableCipherList;
+  UINTN           AvailableCipherCount;
+  EFI_TLS_CIPHER  *DefaultCipherList;
+  UINTN           DefaultCipherCount;
+  UINTN           Index;
+
+  //
+  // Get available ciphers
+  //
+  Status = GetAvailableTLSCiphers (&AvailableCipherList, &AvailableCipherCount);
+
+  if (EFI_ERROR (Status)) {
+    return Status;
+  }
+
+  if (AvailableCipherCount > TLS_AUTH_CONFIG_CIPHERLIST_SIZE) {
+    AvailableCipherCount = TLS_AUTH_CONFIG_CIPHERLIST_SIZE;
+  }
+
+  //
+  // Get default ciphers
+  //
+  Status = GetDefaultTLSCiphers (&DefaultCipherList, &DefaultCipherCount);
+
+  if (EFI_ERROR (Status)) {
+    return Status;
+  }
+
+  // IfrNvData CipherList order corresponds to AvailableCipherList order
+  for (Index = 0; Index < AvailableCipherCount; Index++) {
+    IfrNvData->CipherList[Index]                   = IsTLSCiphersPresent (DefaultCipherList, DefaultCipherCount, &AvailableCipherList[Index]);
+    Private->TlsAuthConfigNvData.CipherList[Index] = IfrNvData->CipherList[Index];
+  }
+
+  return EFI_SUCCESS;
+}
+
+/**
+  List all supported ciphers in the page from the variable HttpTlsCipherList
+  for user to enable and disable as needed.
+
+  @param[in]    PrivateData         Module's private data.
+  @param[in]    LabelNumber         Label number to insert opcodes.
+  @param[in]    FormId              Form ID of current page.
+  @param[in]    QuestionIdBase      Base question id of the signature list.
+
+  @retval   EFI_SUCCESS             Success to update the signature list page
+  @retval   EFI_OUT_OF_RESOURCES    Unable to allocate required resources.
+
+**/
+EFI_STATUS
+UpdateCipherPage (
+  IN TLS_AUTH_CONFIG_PRIVATE_DATA  *Private,
+  IN UINT16                        LabelNumber,
+  IN EFI_FORM_ID                   FormId,
+  IN EFI_QUESTION_ID               QuestionIdBase
+  )
+{
+  EFI_STATUS          Status;
+  VOID                *StartOpCodeHandle;
+  VOID                *EndOpCodeHandle;
+  EFI_IFR_GUID_LABEL  *StartLabel;
+  EFI_IFR_GUID_LABEL  *EndLabel;
+  EFI_TLS_CIPHER      *AvailableCipherList;
+  UINTN               AvailableCipherCount;
+  EFI_TLS_CIPHER      *CurrentCipherList;
+  UINTN               CurrentCipherCount;
+  EFI_TLS_CIPHER      *DefaultCipherList;
+  UINTN               DefaultCipherCount;
+  UINTN               Index;
+  CHAR16              *NameStr;
+  CHAR16              UnknownNameStr[32];
+  EFI_STRING_ID       NameID;
+  UINT16              Offset;
+  BOOLEAN             Enabled;
+  BOOLEAN             Default;
+
+  CurrentCipherList = NULL;
+  StartOpCodeHandle = NULL;
+  EndOpCodeHandle   = NULL;
+
+  //
+  // Initialize the container for dynamic opcodes.
+  //
+  StartOpCodeHandle = HiiAllocateOpCodeHandle ();
+  if (StartOpCodeHandle == NULL) {
+    Status = EFI_OUT_OF_RESOURCES;
+    goto ON_EXIT;
+  }
+
+  EndOpCodeHandle = HiiAllocateOpCodeHandle ();
+  if (EndOpCodeHandle == NULL) {
+    Status = EFI_OUT_OF_RESOURCES;
+    goto ON_EXIT;
+  }
+
+  //
+  // Create Hii Extend Label OpCode.
+  //
+  StartLabel = (EFI_IFR_GUID_LABEL *)HiiCreateGuidOpCode (
+                                       StartOpCodeHandle,
+                                       &gEfiIfrTianoGuid,
+                                       NULL,
+                                       sizeof (EFI_IFR_GUID_LABEL)
+                                       );
+  StartLabel->ExtendOpCode = EFI_IFR_EXTEND_OP_LABEL;
+  StartLabel->Number       = LabelNumber;
+
+  EndLabel = (EFI_IFR_GUID_LABEL *)HiiCreateGuidOpCode (
+                                     EndOpCodeHandle,
+                                     &gEfiIfrTianoGuid,
+                                     NULL,
+                                     sizeof (EFI_IFR_GUID_LABEL)
+                                     );
+  EndLabel->ExtendOpCode = EFI_IFR_EXTEND_OP_LABEL;
+  EndLabel->Number       = LABEL_END;
+
+  //
+  // Get available ciphers
+  //
+  Status = GetAvailableTLSCiphers (&AvailableCipherList, &AvailableCipherCount);
+
+  if (EFI_ERROR (Status)) {
+    goto ON_EXIT;
+  }
+
+  if (AvailableCipherCount > TLS_AUTH_CONFIG_CIPHERLIST_SIZE) {
+    AvailableCipherCount = TLS_AUTH_CONFIG_CIPHERLIST_SIZE;
+  }
+
+  //
+  // Get default ciphers
+  //
+  Status = GetDefaultTLSCiphers (&DefaultCipherList, &DefaultCipherCount);
+
+  if (EFI_ERROR (Status)) {
+    goto ON_EXIT;
+  }
+
+  // Check if the default ciphers are present in the available ciphers
+  for (Index = 0; Index < DefaultCipherCount; Index++) {
+    if (!IsTLSCiphersPresent (AvailableCipherList, AvailableCipherCount, &DefaultCipherList[Index])) {
+      DEBUG ((
+        DEBUG_WARN,
+        "Default cipher %s (0x%02X 0x%02X) is not present in available ciphers\n",
+        GetCipherName (&DefaultCipherList[Index]),
+        DefaultCipherList[Index].Data1,
+        DefaultCipherList[Index].Data2
+        ));
+      Status = EFI_NOT_READY;
+      goto ON_EXIT;
+    }
+  }
+
+  //
+  // Read variable with current enabled ciphers
+  //
+  Status = GetCurrentTLSCiphers (&CurrentCipherList, &CurrentCipherCount);
+
+  if (EFI_ERROR (Status)) {
+    goto ON_EXIT;
+  }
+
+  //
+  // Enumerate all available ciphers.
+  //
+  for (Index = 0; Index < AvailableCipherCount; Index++) {
+    // Get cipher name
+    NameStr = GetCipherName (&AvailableCipherList[Index]);
+
+    if (NameStr == NULL) {
+      UnicodeSPrint (
+        UnknownNameStr,
+        sizeof (UnknownNameStr),
+        L"Unknown Cipher 0x%02x%02x",
+        CurrentCipherList[Index].Data1,
+        CurrentCipherList[Index].Data2
+        );
+      NameStr = UnknownNameStr;
+    }
+
+    NameID  = HiiSetString (Private->RegisteredHandle, 0, NameStr, NULL);
+    Enabled = IsTLSCiphersPresent (CurrentCipherList, CurrentCipherCount, &AvailableCipherList[Index]);
+    Default = IsTLSCiphersPresent (DefaultCipherList, DefaultCipherCount, &AvailableCipherList[Index]);
+    Offset  = (UINT16)(OFFSET_OF (TLS_AUTH_CONFIG_IFR_NVDATA, CipherList[0]) + Index);
+
+    Private->TlsAuthConfigNvData.CipherList[Index] = Enabled;
+
+    HiiCreateCheckBoxOpCode (
+      StartOpCodeHandle,
+      (EFI_QUESTION_ID)(QuestionIdBase + Index),
+      VARSTORE_ID_TLS_AUTH_CONFIG,
+      Offset,
+      NameID,
+      STRING_TOKEN (STR_NULL),
+      EFI_IFR_FLAG_CALLBACK,
+      Default ? EFI_IFR_CHECKBOX_DEFAULT : 0,
+      NULL
+      );
+  }
+
+  Status = EFI_SUCCESS;
+
+ON_EXIT:
+  HiiUpdateForm (
+    Private->RegisteredHandle,
+    &gTlsAuthConfigGuid,
+    FormId,
+    StartOpCodeHandle,
+    EndOpCodeHandle
+    );
+
+  if (StartOpCodeHandle != NULL) {
+    HiiFreeOpCodeHandle (StartOpCodeHandle);
+  }
+
+  if (EndOpCodeHandle != NULL) {
+    HiiFreeOpCodeHandle (EndOpCodeHandle);
+  }
+
+  if (CurrentCipherList != NULL) {
+    FreePool (CurrentCipherList);
+  }
+
+  return Status;
+}
+
 /**
   Unload the configuration form, this includes: delete all the configuration
   entries, uninstall the form callback protocol, and free the resources used.
@@ -1208,7 +1921,7 @@ TlsAuthConfigAccessExtractConfig (
   Private = TLS_AUTH_CONFIG_PRIVATE_FROM_THIS (This);
 
   BufferSize = sizeof (TLS_AUTH_CONFIG_IFR_NVDATA);
-  ZeroMem (&Private->TlsAuthConfigNvData, BufferSize);
+  ZeroMem (&Private->TlsAuthConfigNvData.CertGuid, TLS_AUTH_CONFIG_GUID_STORAGE_SIZE);
 
   *Progress = Request;
 
@@ -1335,7 +2048,7 @@ TlsAuthConfigAccessRouteConfig (
   Private = TLS_AUTH_CONFIG_PRIVATE_FROM_THIS (This);
 
   BufferSize = sizeof (TLS_AUTH_CONFIG_IFR_NVDATA);
-  ZeroMem (&Private->TlsAuthConfigNvData, BufferSize);
+  ZeroMem (&Private->TlsAuthConfigNvData.CertGuid, TLS_AUTH_CONFIG_GUID_STORAGE_SIZE);
 
   Status = gHiiConfigRouting->ConfigToBlock (
                                 gHiiConfigRouting,
@@ -1347,6 +2060,9 @@ TlsAuthConfigAccessRouteConfig (
   if (EFI_ERROR (Status)) {
     return Status;
   }
+
+  // Save cipher list to variable
+  Status = UpdateCurrentTLSCiphers (Private);
 
   return Status;
 }
@@ -1426,7 +2142,8 @@ TlsAuthConfigAccessCallback (
 
   if ((Action != EFI_BROWSER_ACTION_CHANGED) &&
       (Action != EFI_BROWSER_ACTION_CHANGING) &&
-      (Action != EFI_BROWSER_ACTION_FORM_CLOSE))
+      (Action != EFI_BROWSER_ACTION_FORM_CLOSE) &&
+      (Action != EFI_BROWSER_ACTION_DEFAULT_STANDARD))
   {
     Status = EFI_UNSUPPORTED;
     goto EXIT;
@@ -1505,6 +2222,15 @@ TlsAuthConfigAccessCallback (
           );
         break;
 
+      case KEY_TLS_AUTH_CONFIG_TLS_CIPHERS:
+        UpdateCipherPage (
+          Private,
+          LABEL_TLS_CIPHERS,
+          TLS_AUTH_CONFIG_FORMID6_FORM,
+          OPTION_CIPHER_LIST_BASE
+          );
+        break;
+
       default:
         if ((QuestionId >= OPTION_DEL_CA_ESTION_ID) &&
             (QuestionId < (OPTION_DEL_CA_ESTION_ID + OPTION_CONFIG_RANGE)))
@@ -1542,6 +2268,8 @@ TlsAuthConfigAccessCallback (
     }
   } else if (Action == EFI_BROWSER_ACTION_FORM_CLOSE) {
     CleanFileContext (Private);
+  } else if (Action == EFI_BROWSER_ACTION_DEFAULT_STANDARD) {
+    Status = LoadDefaultCiphers (Private, IfrNvData);
   }
 
 EXIT:

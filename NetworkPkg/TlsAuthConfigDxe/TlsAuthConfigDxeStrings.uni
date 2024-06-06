@@ -15,6 +15,8 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 #string STR_TLS_AUTH_CONFIG_SERVER_CA_HELP         #language en-US "Press <Enter> to configure Server CA."
 #string STR_TLS_AUTH_CONFIG_CLIENT_CERT            #language en-US "Client Cert Configuration"
 #string STR_TLS_AUTH_CONFIG_CLIENT_CERT_HELP       #language en-US "Client cert configuration is unsupported currently."
+#string STR_TLS_AUTH_CONFIG_TLS_CIPHERS            #language en-US "TLS Ciphers Configuration"
+#string STR_TLS_AUTH_CONFIG_TLS_CIPHERS_HELP       #language en-US "Press <Enter> to configure TLS Ciphers."
 
 #string STR_TLS_AUTH_CONFIG_ENROLL_CERT              #language en-US "Enroll Cert"
 #string STR_TLS_AUTH_CONFIG_ENROLL_CERT_HELP         #language en-US "Press <Enter> to enroll cert."

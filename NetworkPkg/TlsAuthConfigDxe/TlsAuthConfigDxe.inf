@@ -59,6 +59,7 @@
   gEfiCertX509Guid                              ## SOMETIMES_CONSUMES  ## GUID  # Indicate the cert type
   gEfiIfrTianoGuid                              ## SOMETIMES_PRODUCES  ## HII
   gEfiTlsCaCertificateGuid                      ## PRODUCES  ## Variable:L"TlsCaCertificate"
+  gEdkiiHttpTlsCipherListGuid                   ## PRODUCES  ## Variable:L"HttpTlsCipherList"
 
 [Depex]
   gEfiHiiConfigRoutingProtocolGuid  AND
@@ -66,4 +67,10 @@
 
 [UserExtensions.TianoCore."ExtraFiles"]
   TlsAuthConfigDxeExtra.uni
+
+[Pcd]
+  gEfiNetworkPkgTokenSpaceGuid.PcdAvailableTLSCiphers
+  gEfiNetworkPkgTokenSpaceGuid.PcdDefaultTLSCiphers
+  gEfiNetworkPkgTokenSpaceGuid.PcdTLSCipherVariableAttributes
+  gEfiNetworkPkgTokenSpaceGuid.PcdInitializeTLSCipherVariable
 
