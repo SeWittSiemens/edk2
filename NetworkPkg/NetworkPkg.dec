@@ -182,5 +182,61 @@
   # @Prompt The value of Retry Count,  Default value is 0.
   gEfiNetworkPkgTokenSpaceGuid.PcdHttpDnsRetryCount|0|UINT32|0x00000011
 
+  ## The available TLS cipher list that is used by TLS clients.
+  # Note: Available does not mean supported. The supported TLS cipher depend
+  # on the used TLS library.
+  # Note: The definition of EFI_TLS_CIPHER definition is from "RFC 5246, A.4.1.
+  # Hello Messages". The value of EFI_TLS_CIPHER is from TLS Cipher Suite
+  # Registry of IANA.
+  # @Prompt The available TLS cipher list.
+  # Default value is all ciphers listed here:
+  # 0x00, 0x2F, /// TLS_RSA_WITH_AES_128_CBC_SHA
+  # 0x00, 0x33, /// TLS_DHE_RSA_WITH_AES_128_CBC_SHA
+  # 0x00, 0x35, /// TLS_RSA_WITH_AES_256_CBC_SHA
+  # 0x00, 0x36, /// TLS_DH_DSS_WITH_AES_256_CBC_SHA
+  # 0x00, 0x37, /// TLS_DH_RSA_WITH_AES_256_CBC_SHA
+  # 0x00, 0x39, /// TLS_DHE_RSA_WITH_AES_256_CBC_SHA
+  # 0x00, 0x3B, /// TLS_RSA_WITH_NULL_SHA256
+  # 0x00, 0x3C, /// TLS_RSA_WITH_AES_128_CBC_SHA256
+  # 0x00, 0x3D, /// TLS_RSA_WITH_AES_256_CBC_SHA256
+  # 0x00, 0x3E, /// TLS_DH_DSS_WITH_AES_128_CBC_SHA256
+  # 0x00, 0x3F, /// TLS_DH_RSA_WITH_AES_128_CBC_SHA256
+  # 0x00, 0x67, /// TLS_DHE_RSA_WITH_AES_128_CBC_SHA256
+  # 0x00, 0x68, /// TLS_DH_DSS_WITH_AES_256_CBC_SHA256
+  # 0x00, 0x69, /// TLS_DH_RSA_WITH_AES_256_CBC_SHA256
+  # 0x00, 0x6B, /// TLS_DHE_RSA_WITH_AES_256_CBC_SHA256
+  # 0x00, 0x9C, /// TLS_RSA_WITH_AES_128_GCM_SHA256
+  # 0x00, 0x9F, /// TLS_DHE_RSA_WITH_AES_256_GCM_SHA384
+  # 0xC0, 0x0A, /// TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA
+  # 0xC0, 0x14, /// TLS_ECDHA_RSA_WITH_AES_128_CBC_SHA
+  # 0xC0, 0x15, /// TLS_ECDHA_RSA_WITH_AES_256_CBC_SHA
+  # 0xC0, 0x27, /// TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
+  # 0xC0, 0x28, /// TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384
+  # 0xC0, 0x2B, /// TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+  # 0xC0, 0x2C, /// TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+  # 0xC0, 0x2F, /// TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+  # 0xC0, 0x30, /// TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+  gEfiNetworkPkgTokenSpaceGuid.PcdAvailableTLSCiphers|{0x00, 0x2F, 0x00, 0x33, 0x00, 0x35, 0x00, 0x36, 0x00, 0x37, 0x00, 0x39, 0x00, 0x3B, 0x00, 0x3C, 0x00, 0x3D, 0x00, 0x3E, 0x00, 0x3F, 0x00, 0x67, 0x00, 0x68, 0x00, 0x69, 0x00, 0x6B, 0x00, 0x9C, 0x00, 0x9F, 0xC0, 0x0A, 0xC0, 0x14, 0xC0, 0x15, 0xC0, 0x27, 0xC0, 0x28, 0xC0, 0x2B, 0xC0, 0x2C, 0xC0, 0x2F, 0xC0, 0x30}|VOID*|0x10000012 
+
+  ## The default TLS cipher list that are used by TLS clients.
+  # Default value for the variable HttpTlsCipherList.
+  # Note: The definition of EFI_TLS_CIPHER definition is from "RFC 5246, A.4.1.
+  # Hello Messages". The value of EFI_TLS_CIPHER is from TLS Cipher
+  # Suite Registry of IANA.
+  # @Prompt The default TLS cipher list. Default value:
+  # 0x00, 0x9C, /// TLS_RSA_WITH_AES_128_GCM_SHA256
+  # 0x00, 0x9F, /// TLS_DHE_RSA_WITH_AES_256_GCM_SHA384
+  # 0xC0, 0x2F, /// TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+  # 0xC0, 0x30, /// TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+  gEfiNetworkPkgTokenSpaceGuid.PcdDefaultTLSCiphers|{0x00, 0x9C, 0x00, 0x9F, 0xC0, 0x2F, 0xC0, 0x30}|VOID*|0x10000013
+
+  ## The variable attributes for the variable HttpTlsCipherList.
+  # @Prompt HttpTlsCipherList variable attributes,  Default value is 3 (BS+NV).
+  gEfiNetworkPkgTokenSpaceGuid.PcdTLSCipherVariableAttributes|0x00000003|UINT32|0x10000014
+
+  ## Initialize the HttpTlsCipherList variable if it does not exist.
+  # @Prompt Initialize the HttpTlsCipherList variable if it does not exist. Default value is TRUE.
+  gEfiNetworkPkgTokenSpaceGuid.PcdInitializeTLSCipherVariable|TRUE|BOOLEAN|0x10000015
+
 [UserExtensions.TianoCore."ExtraFiles"]
   NetworkPkgExtra.uni
